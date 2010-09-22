@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <limits.h>
 #include <memory.h>
+#include <signal.h>
 #include <caml/mlvalues.h>
 #include <caml/memory.h>
 #include <caml/callback.h>
@@ -66,5 +67,31 @@ value ocaml_forkpty(value f, value termp, value winp)
 value ocaml_forkpty_nocallback(value termp, value winp)
 {
 	return ocaml_forkpty(Val_int(0), termp, winp);
+}
+
+static void (*g_prev_handler)(int) = NULL;
+static value g_handler = Val_int(0);
+
+void winch_handler(int sig)
+{
+	if(Is_block(g_handler))
+	{
+		callback(g_handler, Val_int(sig));
+	}
+}
+
+value ocaml_handle_winch(value handler)
+{
+	if(Is_block(handler))
+	{
+		g_handler = handler;
+		signal(SIGWINCH, &winch_handler);
+	}
+	else
+	{
+		g_handler = Val_int(0);
+		signal(SIGWINCH, g_prev_handler);
+	}
+	return Val_int(0);
 }
 
