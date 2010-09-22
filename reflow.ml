@@ -6,22 +6,31 @@ let rec really_read fd str start len =
       really_read fd str (start+read_len) (len-read_len)
     with _ -> ()
  
-let child _ = Unix.execvp "yes" [|"yes"; "hello"|]
+let child _ = Unix.execv "/bin/bash" [|"/bin/bash"|]
 
-let buffer = String.create 256
+let buffsize = 65536
+let in_buffsize = 1024
+let buffer = String.create buffsize
+let in_buffer = String.create in_buffsize
 
 let _ =
-  Printf.printf "Parent %d\n" (Unix.getpid ());
+  let pos = ref 0 in
+  Sys.set_signal Sys.sigchld (Sys.Signal_handle exit);
   match Ptyutils.forkpty_nocallback None None with
     | (-1, _, _) -> failwith "Error"
     | (0, _, _) -> child ()
-    | (pid, fd, name) -> while true do
-        Unix.write Unix.stdout "Parent with child" 0 17;
-        try
-          let read_len = Unix.read fd buffer 0 256 in
-            if read_len > 0 then
-              Printf.printf "%d %s" read_len buffer
-            else ()
-        with _ -> Printf.printf "Couldn't read\n";
-                  Unix.sleep 2
+    | (_, fd, _) -> while true do
+        let input_len = Unix.read Unix.stdin in_buffer 0 in_buffsize in
+        let _ = Unix.write fd in_buffer 0 input_len in
+          Unix.sleep 1;
+        let loop = ref true in
+          while !loop do
+            if !pos >= buffsize then pos := 0;
+            try
+              let read_len = Unix.read fd buffer !pos (buffsize - !pos) in
+              let _ = Unix.write Unix.stdout buffer !pos read_len in
+              if read_len < (buffsize - !pos) then loop := false;
+              pos := !pos + read_len
+            with _ -> loop := false
+          done
       done
