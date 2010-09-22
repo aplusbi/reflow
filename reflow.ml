@@ -12,10 +12,13 @@ let buffsize = 65536
 let in_buffsize = 1024
 let buffer = String.create buffsize
 let in_buffer = String.create in_buffsize
+let pos = ref 0 
+
+let winch _ = let _ = Unix.write Unix.stdout buffer 0 (buffsize - !pos) in ()
 
 let _ =
-  let pos = ref 0 in
   Sys.set_signal Sys.sigchld (Sys.Signal_handle exit);
+  Ptyutils.set_winch_handler winch;
   match Ptyutils.forkpty_nocallback None None with
     | (-1, _, _) -> failwith "Error"
     | (0, _, _) -> child ()
