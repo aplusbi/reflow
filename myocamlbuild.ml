@@ -10,6 +10,7 @@ let obj_files = "ocaml_forkpty.o";;
 
 dispatch begin function
   | After_rules ->
-      flag ["link"; "ocaml"; "byte"] (S[A "-custom"; A obj_files; A "-cclib"; A clibdir; A "-cclib"; A clibs]);
+      flag ["link"; "ocaml"; "byte"] (A "-custom");
+      flag ["link"; "ocaml"] (S[A obj_files; A "-cclib"; A clibdir; A "-cclib"; A clibs]);
   | _ -> ()
 end

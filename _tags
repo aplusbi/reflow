@@ -1,3 +1,1 @@
-<Ptyutils>: include
-<reflow{.d,}.{native,byte}>: use_unix, use_ptyutils
-<**/*.{cma,cmxa}>: use_unix
+<reflow{.d,}.{native,byte}>: use_unix
