@@ -9,12 +9,12 @@
 #include <signal.h>
 #include <caml/mlvalues.h>
 #include <caml/memory.h>
+#include <caml/alloc.h>
 #include <caml/callback.h>
 
 value ocaml_forkpty(value f, value termp, value winp)
 {
 	CAMLparam3(f, termp, winp);
-	/*CAMLparam2(termp, winp);*/
 	struct termios term;
 	struct winsize win;
 	int fd = -1;
@@ -57,10 +57,10 @@ value ocaml_forkpty(value f, value termp, value winp)
 		exit(0);
 	}
 
-	value ret = alloc_tuple(3*sizeof(value));
+	value ret = caml_alloc_tuple(3*sizeof(value));
 	Store_field(ret, 0, Val_int(pid));
 	Store_field(ret, 1, Val_int(fd));
-	Store_field(ret, 2, copy_string(name));
+	Store_field(ret, 2, caml_copy_string(name));
 	return ret;
 }
 
