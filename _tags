@@ -1,1 +1,1 @@
-<reflow{.d,}.{native,byte}>: use_unix
+<reflow{.d,}.{native,byte}>: use_unix, use_ptyutils
