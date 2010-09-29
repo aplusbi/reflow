@@ -1,0 +1,37 @@
+reflow - a terminal text reflower
+=================================
+
+Reflow is a command line utility that runs a sub-process
+as transparently as possible.  When the controlling terminal
+is resized, reflow will wrap any visible text.
+
+Status
+------
+
+Reflow is currently not useable but is in active development.
+
+Requirements
+------------
+
+Reflow is programmed in OCaml with some C stubs.  Reflow
+uses Ocamlbuild to compile and link the project.
+
+Installation
+------------
+
+Running:
+
+    Ocamlbuild reflow.byte
+
+from the root project directory will build the executable
+'reflow.byte' and place it in the _build directory (with a
+symlink in the project root).  If you have the native
+OCaml compiler installed you can also build 'reflow.native'.
+
+Todo
+----
+
+* Allow any terminal application to be run inside reflow using
+command line arguments.
+* Use ncurses to word-wrap text when necessary
+* Pass control characters to the sub-process
