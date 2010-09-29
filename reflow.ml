@@ -1,20 +1,19 @@
-let rec really_read fd str start len =
-  if len <= 0 then ()
-  else
-    try
-    let read_len = Unix.read fd str start len in
-      really_read fd str (start+read_len) (len-read_len)
-    with _ -> ()
- 
 let child _ = Unix.execv "/bin/bash" [|"/bin/bash"|]
 
-let buffsize = 65536
+let buffsize = 256
 let in_buffsize = 1024
-let buffer = String.create buffsize
+let buffer = Ringbuffer.create buffsize
 let in_buffer = String.create in_buffsize
-let pos = ref 0 
+let need_reprint = ref false
 
-let winch _ = let _ = Unix.write Unix.stdout buffer 0 (buffsize - !pos) in ()
+let winch _ = need_reprint := true
+  
+
+let setup_signal_passing pid =
+  Sys.set_signal Sys.sighup (Sys.Signal_handle (Unix.kill pid));
+  Sys.set_signal Sys.sigint (Sys.Signal_handle (Unix.kill pid));
+  Sys.set_signal Sys.sigcont (Sys.Signal_handle (Unix.kill pid));
+  Sys.set_signal Sys.sigtstp (Sys.Signal_handle (Unix.kill pid))
 
 let _ =
   Sys.set_signal Sys.sigchld (Sys.Signal_handle exit);
@@ -22,18 +21,18 @@ let _ =
   match Ptyutils.forkpty_nocallback None None with
     | (-1, _, _) -> failwith "Error"
     | (0, _, _) -> child ()
-    | (_, fd, _) -> while true do
-        let input_len = Unix.read Unix.stdin in_buffer 0 in_buffsize in
-        let _ = Unix.write fd in_buffer 0 input_len in
-          Unix.sleep 1;
-        let loop = ref true in
-          while !loop do
-            if !pos >= buffsize then pos := 0;
-            try
-              let read_len = Unix.read fd buffer !pos (buffsize - !pos) in
-              let _ = Unix.write Unix.stdout buffer !pos read_len in
-              if read_len < (buffsize - !pos) then loop := false;
-              pos := !pos + read_len
-            with _ -> loop := false
-          done
-      done
+    | (pid, fd, _) ->
+        (*setup_signal_passing pid;*)
+        let read_len = ref 0 in
+        let input_len = ref 0 in
+        while true do
+          let (input, output, _) = Unix.select [Unix.stdin; fd] [Unix.stdout; fd] [] (-1.) in
+            if List.mem fd input then
+              read_len := !read_len + (Ringbuffer.read fd buffer);
+            if (List.mem Unix.stdout output) then
+              let _ = Ringbuffer.writebytes Unix.stdout buffer (-(!read_len)) !read_len in read_len := 0;
+            if List.mem Unix.stdin input then
+              input_len := !input_len + (Unix.read Unix.stdin in_buffer 0 in_buffsize);
+            if List.mem fd output then
+              let _ = Unix.write fd in_buffer 0 !input_len in input_len := 0
+        done
