@@ -24,14 +24,16 @@ let writerange fd rb first last =
       else
         let l = (if last >= rb.curr or last < first then rb.curr - first else last - first) in
           Unix.write fd rb.buffer first l
-    | true -> if first > last then let len = Unix.write fd rb.buffer first (rb.length - first) in
+    | true -> if first >= last then let len = Unix.write fd rb.buffer first (rb.length - first) in
         len + (if len = (rb.length - first) then (Unix.write fd rb.buffer 0 last) else 0)
         else
           Unix.write fd rb.buffer first (last - first)
 
 let rec writebytes fd rb offset bytes =
-  let f = rb.curr + offset in
-  let first = (if f < 0 then rb.length + f else if f > rb.length then rb.length - f else f) in
-  let last = (if first + bytes > rb.length then rb.length - (first + bytes) else first + bytes) in
+  let o = (if (abs offset) > rb.length then offset mod rb.length else offset) in
+  let b = (if bytes > rb.length then rb.length else bytes) in
+  let f = rb.curr + o in
+  let first = (if f < 0 then rb.length + f else if f > rb.length then f - rb.length else f) in
+  let last = (if first + b > rb.length then (first + b) - rb.length else first + b) in
     writerange fd rb first last
 
