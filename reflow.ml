@@ -1,13 +1,12 @@
 let child _ = Unix.execv "/bin/bash" [|"/bin/bash"|]
 
-let buffsize = 256
+let buffsize = 65536
 let in_buffsize = 1024
 let buffer = Ringbuffer.create buffsize
 let in_buffer = String.create in_buffsize
 let need_reprint = ref false
 
 let winch _ = need_reprint := true
-  
 
 let setup_signal_passing pid =
   Sys.set_signal Sys.sighup (Sys.Signal_handle (Unix.kill pid));
@@ -17,12 +16,12 @@ let setup_signal_passing pid =
 
 let _ =
   Sys.set_signal Sys.sigchld (Sys.Signal_handle exit);
-  Ptyutils.set_winch_handler winch;
+  Sys.set_signal (Ptyutils.sigwinch ()) (Sys.Signal_handle winch);
   match Ptyutils.forkpty_nocallback None None with
     | (-1, _, _) -> failwith "Error"
     | (0, _, _) -> child ()
     | (pid, fd, _) ->
-        (*setup_signal_passing pid;*)
+        let close_fd _ = Unix.close fd in at_exit close_fd;
         let read_len = ref 0 in
         let input_len = ref 0 in
         while true do
@@ -30,7 +29,12 @@ let _ =
             if List.mem fd input then
               read_len := !read_len + (Ringbuffer.read fd buffer);
             if (List.mem Unix.stdout output) then
-              let _ = Ringbuffer.writebytes Unix.stdout buffer (-(!read_len)) !read_len in read_len := 0;
+              begin
+                if !need_reprint then
+                  let _ = Ringbuffer.write Unix.stdout buffer in read_len := 0; need_reprint := false
+                  else
+                    let _ = Ringbuffer.writebytes Unix.stdout buffer (-(!read_len)) !read_len in read_len := 0
+              end;
             if List.mem Unix.stdin input then
               input_len := !input_len + (Unix.read Unix.stdin in_buffer 0 in_buffsize);
             if List.mem fd output then
