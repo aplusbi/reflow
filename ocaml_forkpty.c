@@ -13,8 +13,6 @@
 #include <caml/alloc.h>
 #include <caml/callback.h>
 
-#include <fcntl.h>
-
 value ocaml_sigwinch(value unit)
 {	
 	return Val_int(SIGWINCH);
@@ -72,22 +70,14 @@ value ocaml_get_winsize(value fd)
 value ocaml_set_winsize(value fd, value winp)
 {
 	CAMLparam2(fd, winp);
-	int log = open("log.txt", O_WRONLY | O_CREAT);
-	char buff[256];
 
 	int ifd = Int_val(fd);
-	sprintf(buff, "fd %d\n", ifd);
-	write(log, buff, strlen(buff));
 	struct winsize ws;
 	ws.ws_row = Int_val(Field(winp, 0));
 	ws.ws_col = Int_val(Field(winp, 1));
 	ws.ws_xpixel = Int_val(Field(winp, 2));
 	ws.ws_ypixel = Int_val(Field(winp, 3));
-	sprintf(buff, "ws %d, %d, %d, %d\n", ws.ws_row, ws.ws_col, ws.ws_xpixel, ws.ws_ypixel);
-	write(log, buff, strlen(buff));
 	ioctl(ifd, TIOCSWINSZ, &ws);
-
-	close(log);
 
 	return Val_int(0);
 }
