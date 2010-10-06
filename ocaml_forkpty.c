@@ -1,5 +1,5 @@
-#include<stdio.h>
-#include<stdlib.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <pty.h>
 #include <termios.h>
 #include <unistd.h>
@@ -7,60 +7,26 @@
 #include <limits.h>
 #include <memory.h>
 #include <signal.h>
+#include <sys/ioctl.h>
 #include <caml/mlvalues.h>
 #include <caml/memory.h>
 #include <caml/alloc.h>
 #include <caml/callback.h>
+
+#include <fcntl.h>
 
 value ocaml_sigwinch(value unit)
 {	
 	return Val_int(SIGWINCH);
 }
 
-value ocaml_forkpty(value f, value termp, value winp)
+value ocaml_forkpty(value unit)
 {
-	CAMLparam3(f, termp, winp);
-	struct termios term;
-	struct winsize win;
 	int fd = -1;
 	pid_t pid = -1;
 	char name[BUFSIZ];
-	struct termios *pterm = NULL;
-	struct winsize *pwin = NULL;
 
-	memset(&term, 0, sizeof(term));
-	memset(&win, 0, sizeof(win));
-
-	if(Is_block(termp))
-	{
-		value t = Field(termp, 0);
-		term.c_iflag = Int_val(Field(t, 0));
-		term.c_oflag = Int_val(Field(t, 1));
-		term.c_cflag = Int_val(Field(t, 2));
-		value c_cc = Field(t, 3);
-		int size = Wosize_val(c_cc) * sizeof(value);
-		int i;
-		for(i=0; i<size; ++i)
-			term.c_cc[i] = Int_val(Field(c_cc, i));
-		pterm = &term;
-	}
-	if(Is_block(winp))
-	{
-		value w = Field(winp, 0);
-		win.ws_row = Int_val(Field(w, 0));
-		win.ws_col = Int_val(Field(w, 1));
-		win.ws_xpixel = Int_val(Field(w, 2));
-		win.ws_ypixel = Int_val(Field(w, 3));
-		pwin = &win;
-	}
-
-	pid = forkpty(&fd, name, pterm, pwin);
-
-	if(Is_block(f) && pid == 0)
-	{
-		callback(f, Val_int(0));
-		exit(0);
-	}
+	pid = forkpty(&fd, name, NULL, NULL);
 
 	value ret = caml_alloc_tuple(3*sizeof(value));
 	Store_field(ret, 0, Val_int(pid));
@@ -69,8 +35,60 @@ value ocaml_forkpty(value f, value termp, value winp)
 	return ret;
 }
 
-value ocaml_forkpty_nocallback(value termp, value winp)
+value ocaml_openpty(value unit)
 {
-	return ocaml_forkpty(Val_int(0), termp, winp);
+	int master = -1;
+	int slave = -1;
+	int rv = -1;
+	char name[BUFSIZ];
+
+	rv = openpty(&master, &slave, name, NULL, NULL);
+
+	value ret = caml_alloc_tuple(4*sizeof(value));
+	Store_field(ret, 0, Val_int(rv));
+	Store_field(ret, 1, Val_int(master));
+	Store_field(ret, 2, Val_int(slave));
+	Store_field(ret, 3, caml_copy_string(name));
+	return ret;
+}
+
+value ocaml_get_winsize(value fd)
+{
+	CAMLparam1(fd);
+
+	int ifd = Int_val(fd);
+	struct winsize ws;
+	ioctl(ifd, TIOCGWINSZ, &ws);
+
+	CAMLlocal1(ret);
+	ret = caml_alloc(4, 0);
+	Store_field(ret, 0, Val_int(ws.ws_row));
+	Store_field(ret, 1, Val_int(ws.ws_col));
+	Store_field(ret, 2, Val_int(ws.ws_xpixel));
+	Store_field(ret, 3, Val_int(ws.ws_ypixel));
+	CAMLreturn(ret);
+}
+
+value ocaml_set_winsize(value fd, value winp)
+{
+	CAMLparam2(fd, winp);
+	int log = open("log.txt", O_WRONLY | O_CREAT);
+	char buff[256];
+
+	int ifd = Int_val(fd);
+	sprintf(buff, "fd %d\n", ifd);
+	write(log, buff, strlen(buff));
+	struct winsize ws;
+	ws.ws_row = Int_val(Field(winp, 0));
+	ws.ws_col = Int_val(Field(winp, 1));
+	ws.ws_xpixel = Int_val(Field(winp, 2));
+	ws.ws_ypixel = Int_val(Field(winp, 3));
+	sprintf(buff, "ws %d, %d, %d, %d\n", ws.ws_row, ws.ws_col, ws.ws_xpixel, ws.ws_ypixel);
+	write(log, buff, strlen(buff));
+	ioctl(ifd, TIOCSWINSZ, &ws);
+
+	close(log);
+
+	return Val_int(0);
 }
 
