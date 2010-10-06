@@ -15,6 +15,11 @@ let setup_signal_passing pid =
   Sys.set_signal Sys.sigtstp (Sys.Signal_handle (Unix.kill pid))
 
 let _ =
+  let terminfo = Unix.tcgetattr Unix.stdin in
+  let new_terminfo = {terminfo with Unix.c_icanon = false; Unix.c_vmin = 0; Unix.c_vtime = 0; Unix.c_echo = false } in
+  let reset_stdin () = Unix.tcsetattr Unix.stdin Unix.TCSAFLUSH terminfo in
+    at_exit reset_stdin;
+    Unix.tcsetattr Unix.stdin Unix.TCSAFLUSH new_terminfo;
   Sys.set_signal Sys.sigchld (Sys.Signal_handle exit);
   Sys.set_signal (Ptyutils.sigwinch ()) (Sys.Signal_handle winch);
   match Ptyutils.forkpty_nocallback None None with
