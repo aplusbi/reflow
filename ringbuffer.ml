@@ -18,6 +18,14 @@ let rec write fd rb = match rb.full with
           | len -> len + (Unix.write fd rb.buffer 0 rb.curr)
       end
 
+let rec read_from_string str rb offset strlen =
+  let amt = rb.length - rb.curr in
+  let len = min strlen amt in
+    String.blit str offset rb.buffer rb.curr len;
+    if len = amt then let len = strlen - amt in
+      rb.curr <- 0; rb.full <- true;
+      read_from_string str rb (offset + amt) len
+
 let writerange fd rb first last =
   match rb.full with
     | false -> if first >= rb.curr then 0
