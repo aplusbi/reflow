@@ -4,6 +4,15 @@ let quit_message _ =
 
 let child _ = Unix.execv "/bin/bash" [|"/bin/bash"|]
 
+module Integer =
+struct
+  type t = int
+  let compare = compare
+end
+module SigMap = Map.Make(Integer)
+let ctrl k = char_of_int ((int_of_char k) land 0x1F)
+let signal_map = List.fold_left2 (fun a b c -> SigMap.add b c a) SigMap.empty [Sys.sigint; Sys.sigtstp] [ctrl 'C'; ctrl 'Z']
+
 let buffsize = 65536
 let in_buffsize = 1024
 let out_buffsize = 65536
@@ -12,7 +21,12 @@ let in_buffer = String.create in_buffsize
 let out_buffer = String.create out_buffsize
 let need_reprint = ref false
 
-let winch pid sg  = Unix.kill pid sg; need_reprint := true
+let sigwinch_handler pid sg  = Unix.kill pid sg; need_reprint := true
+let sigchar_handler fd sg =
+  try
+    let c = SigMap.find sg signal_map in
+    let _ = Unix.write fd (String.make 1 c) 0 1 in ()
+  with Not_found -> ()
 
 let setup_signal_passing pid =
   Sys.set_signal Sys.sighup (Sys.Signal_handle (Unix.kill pid));
@@ -20,8 +34,6 @@ let setup_signal_passing pid =
   Sys.set_signal Sys.sigcont (Sys.Signal_handle (Unix.kill pid));
   Sys.set_signal Sys.sigtstp (Sys.Signal_handle (Unix.kill pid))
 
-let ctrl k = char_of_int ((int_of_char k) land 0x1F)
-let sigint_handler fd sg = let _ = Unix.write fd (String.make 1 (ctrl 'C')) 0 1 in ()
 
 let _ =
   at_exit quit_message;
@@ -35,8 +47,9 @@ let _ =
     | (-1, _, _) -> failwith "Error"
     | (0, _, _) -> child ()
     | (pid, fd, _) ->
-          Sys.set_signal Ptyutils.sigwinch (Sys.Signal_handle (winch pid));
-          Sys.set_signal Sys.sigint (Sys.Signal_handle (sigint_handler fd));
+          Sys.set_signal Ptyutils.sigwinch (Sys.Signal_handle (sigwinch_handler pid));
+          Sys.set_signal Sys.sigint (Sys.Signal_handle (sigchar_handler fd));
+          Sys.set_signal Sys.sigtstp (Sys.Signal_handle (sigchar_handler fd));
         let close_fd _ = Unix.close fd in at_exit close_fd;
         let read_len = ref 0 in
         let input_len = ref 0 in
