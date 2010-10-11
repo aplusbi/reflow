@@ -79,6 +79,6 @@ value ocaml_set_winsize(value fd, value winp)
 	ws.ws_ypixel = Int_val(Field(winp, 3));
 	ioctl(ifd, TIOCSWINSZ, &ws);
 
-	return Val_int(0);
+	CAMLreturn0;
 }
 
