@@ -22,6 +22,7 @@ let rec read_from_string str rb offset strlen =
   let amt = rb.length - rb.curr in
   let len = min strlen amt in
     String.blit str offset rb.buffer rb.curr len;
+    rb.curr <- rb.curr + len;
     if len = amt then let len = strlen - amt in
       rb.curr <- 0; rb.full <- true;
       read_from_string str rb (offset + amt) len
