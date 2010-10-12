@@ -1,7 +1,3 @@
-let quit_message _ =
-  let msg = "\nQuitting...\n" in
-  let _ = Unix.write Unix.stdout msg 0 (String.length msg) in ()
-
 let child _ = Unix.execv "/bin/bash" [|"/bin/bash"|]
 
 module Integer =
@@ -36,7 +32,6 @@ let setup_signal_passing pid =
 
 
 let _ =
-  at_exit quit_message;
   let terminfo = Unix.tcgetattr Unix.stdin in
   let new_terminfo = {terminfo with Unix.c_icanon = false; Unix.c_vmin = 0; Unix.c_vtime = 0; Unix.c_echo = false } in
   let reset_stdin () = Unix.tcsetattr Unix.stdin Unix.TCSAFLUSH terminfo in
@@ -50,6 +45,7 @@ let _ =
           Sys.set_signal Ptyutils.sigwinch (Sys.Signal_handle (sigwinch_handler pid));
           Sys.set_signal Sys.sigint (Sys.Signal_handle (sigchar_handler fd));
           Sys.set_signal Sys.sigtstp (Sys.Signal_handle (sigchar_handler fd));
+        let ws = Ptyutils.get_winsize Unix.stdout in Ptyutils.set_winsize fd ws;
         let close_fd _ = Unix.close fd in at_exit close_fd;
         let read_len = ref 0 in
         let input_len = ref 0 in
