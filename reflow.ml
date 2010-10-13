@@ -1,10 +1,16 @@
-let child _ = Unix.execv "/bin/bash" [|"/bin/bash"|]
+let child _ =
+  if (Array.length Sys.argv) < 2 then
+    Unix.execv "/bin/bash" [|"/bin/bash"|]
+  else 
+    let exec = Array.append [|"/bin/sh"; "-c"|] (Array.sub Sys.argv 1 ((Array.length Sys.argv) - 1)) in
+      Unix.execv exec.(0) exec
 
 module Integer =
 struct
   type t = int
   let compare = compare
 end
+
 module SigMap = Map.Make(Integer)
 let ctrl k = char_of_int ((int_of_char k) land 0x1F)
 let signal_map = List.fold_left2 (fun a b c -> SigMap.add b c a) SigMap.empty [Sys.sigint; Sys.sigtstp] [ctrl 'C'; ctrl 'Z']
@@ -24,29 +30,28 @@ let sigchar_handler fd sg =
     let _ = Unix.write fd (String.make 1 c) 0 1 in ()
   with Not_found -> ()
 
-let setup_signal_passing pid =
-  Sys.set_signal Sys.sighup (Sys.Signal_handle (Unix.kill pid));
-  Sys.set_signal Sys.sigint (Sys.Signal_handle (Unix.kill pid));
-  Sys.set_signal Sys.sigcont (Sys.Signal_handle (Unix.kill pid));
-  Sys.set_signal Sys.sigtstp (Sys.Signal_handle (Unix.kill pid))
+let setup_terminal pid fd =
+  Sys.set_signal Ptyutils.sigwinch (Sys.Signal_handle (sigwinch_handler pid));
+  Sys.set_signal Sys.sigint (Sys.Signal_handle (sigchar_handler fd));
+  Sys.set_signal Sys.sigtstp (Sys.Signal_handle (sigchar_handler fd));
+  let ws = Ptyutils.get_winsize Unix.stdout in Ptyutils.set_winsize fd ws;
+  let close_fd _ = Unix.close fd in at_exit close_fd
+
+let setup _ =
+  let terminfo = Unix.tcgetattr Unix.stdin in
+  let new_terminfo = {terminfo with Unix.c_icanon = false; Unix.c_vmin = 0; Unix.c_vtime = 0; Unix.c_echo = false } in
+  let reset_stdin () = Unix.tcsetattr Unix.stdin Unix.TCSAFLUSH terminfo in at_exit reset_stdin;
+  Unix.tcsetattr Unix.stdin Unix.TCSAFLUSH new_terminfo;
+  Sys.set_signal Sys.sigchld (Sys.Signal_handle exit)
 
 
 let _ =
-  let terminfo = Unix.tcgetattr Unix.stdin in
-  let new_terminfo = {terminfo with Unix.c_icanon = false; Unix.c_vmin = 0; Unix.c_vtime = 0; Unix.c_echo = false } in
-  let reset_stdin () = Unix.tcsetattr Unix.stdin Unix.TCSAFLUSH terminfo in
-    at_exit reset_stdin;
-    Unix.tcsetattr Unix.stdin Unix.TCSAFLUSH new_terminfo;
-  Sys.set_signal Sys.sigchld (Sys.Signal_handle exit);
+  setup ();
   match Ptyutils.forkpty () with 
     | (-1, _, _) -> failwith "Error"
     | (0, _, _) -> child ()
     | (pid, fd, _) ->
-          Sys.set_signal Ptyutils.sigwinch (Sys.Signal_handle (sigwinch_handler pid));
-          Sys.set_signal Sys.sigint (Sys.Signal_handle (sigchar_handler fd));
-          Sys.set_signal Sys.sigtstp (Sys.Signal_handle (sigchar_handler fd));
-        let ws = Ptyutils.get_winsize Unix.stdout in Ptyutils.set_winsize fd ws;
-        let close_fd _ = Unix.close fd in at_exit close_fd;
+        setup_terminal pid fd;
         let read_len = ref 0 in
         let input_len = ref 0 in
         while true do
