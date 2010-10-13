@@ -36,8 +36,7 @@ let string_of_ringbuffer rb = match rb.full with
 
 let writerange fd rb first last =
   match rb.full with
-    | false -> if first >= rb.curr then 0
-      else
+    | false -> if first >= rb.curr then 0 else
         let l = (if last >= rb.curr or last < first then rb.curr - first else last - first) in
           Unix.write fd rb.buffer first l
     | true -> if first >= last then let len = Unix.write fd rb.buffer first (rb.length - first) in
@@ -52,4 +51,13 @@ let rec writebytes fd rb offset bytes =
   let first = (if f < 0 then rb.length + f else if f > rb.length then f - rb.length else f) in
   let last = (if first + b > rb.length then (first + b) - rb.length else first + b) in
     writerange fd rb first last
+
+let iter f rb =
+  if rb.full then
+    for i = rb.curr to rb.length - 1 do
+      f rb.buffer.[i]
+    done;
+  for i = 0 to rb.curr - 1 do
+    f rb.buffer.[i]
+  done
 
