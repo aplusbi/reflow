@@ -45,6 +45,26 @@ let setup _ =
   let _ = Curses.noecho () in
   Sys.set_signal Sys.sigchld (Sys.Signal_handle exit)
 
+let process_char _ =
+  let attrs = ref 0 in
+  let fg = ref 0 in
+  let bg = ref 0 in
+  let esc = ref false in
+  let process c =
+    match !esc with
+      | true -> begin
+          match c with
+            | 'm' -> Curses.attrset !attrs
+            | x when (int_of_char x) = 1 -> attrs := !attrs land Curses.A.bold
+            | x when (int_of_char x) >= 30 && (int_of_char x) <= 37 -> ()
+            | _ -> ()
+        end
+      | false -> begin
+          match int_of_char c with
+            | 0o33 -> esc := true; ()
+            | i -> let _ = Curses.addch i in ()
+        end
+  in process
 
 let _ =
   setup ();
@@ -67,7 +87,7 @@ let _ =
               begin
                 if !need_reprint then
                   let (w, h) = Curses.get_size () in let ws = {(Ptyutils.get_winsize fd) with Ptyutils.ws_row=h; Ptyutils.ws_col=w} in Ptyutils.set_winsize fd ws;
-                  let buff = Ringbuffer.string_of_ringbuffer buffer in let _ = Curses.addstr buff in read_len := 0; need_reprint := false
+                  Ringbuffer.iter (fun x -> Curses.addch (int_of_char x)) buffer; read_len := 0; need_reprint := false
                   else
                     let buff = String.sub out_buffer 0 !read_len in let _ = Curses.addstr buff in read_len := 0
               end);
