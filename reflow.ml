@@ -40,10 +40,9 @@ let setup_terminal pid fd =
   let close_fd _ = Unix.close fd in at_exit close_fd
 
 let setup _ =
-  let terminfo = Unix.tcgetattr Unix.stdin in
-  let new_terminfo = {terminfo with Unix.c_icanon = false; Unix.c_vmin = 0; Unix.c_vtime = 0; Unix.c_echo = false } in
-  let reset_stdin () = Unix.tcsetattr Unix.stdin Unix.TCSAFLUSH terminfo in at_exit reset_stdin;
-  Unix.tcsetattr Unix.stdin Unix.TCSAFLUSH new_terminfo;
+  let _ = Curses.initscr () in at_exit Curses.endwin;
+  let _ = Curses.raw () in
+  let _ = Curses.noecho () in
   Sys.set_signal Sys.sigchld (Sys.Signal_handle exit)
 
 
@@ -64,16 +63,21 @@ let _ =
                 Ringbuffer.read_from_string out_buffer buffer !read_len rd_l;
                 read_len := !read_len + rd_l
               end;
-            if (List.mem Unix.stdout output) then
+            (if (List.mem Unix.stdout output) then
               begin
                 if !need_reprint then
-                  let ws = Ptyutils.get_winsize Unix.stdout in Ptyutils.set_winsize fd ws;
-                  let _ = Ringbuffer.write Unix.stdout buffer in read_len := 0; need_reprint := false
+                  let (w, h) = Curses.get_size () in let ws = {(Ptyutils.get_winsize fd) with Ptyutils.ws_row=h; Ptyutils.ws_col=w} in Ptyutils.set_winsize fd ws;
+                  let buff = Ringbuffer.string_of_ringbuffer buffer in let _ = Curses.addstr buff in read_len := 0; need_reprint := false
                   else
-                    let _ = Unix.write Unix.stdout out_buffer 0 !read_len in read_len := 0
-              end;
-            if List.mem Unix.stdin input then
-              input_len := !input_len + (Unix.read Unix.stdin in_buffer 0 in_buffsize);
-            if List.mem fd output then
-              let _ = Unix.write fd in_buffer 0 !input_len in input_len := 0
+                    let buff = String.sub out_buffer 0 !read_len in let _ = Curses.addstr buff in read_len := 0
+              end);
+            (if List.mem Unix.stdin input then
+              begin
+                let c = char_of_int (Curses.getch ()) in in_buffer.[!input_len] <- c; input_len := !input_len + 1
+              end);
+            (if List.mem fd output then
+              begin
+                let _ = Unix.write fd in_buffer 0 !input_len in input_len := 0
+              end);
+            let _ = Curses.refresh () in ();
         done

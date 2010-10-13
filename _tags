@@ -1,1 +1,2 @@
-<reflow{.d,}.{native,byte}>: use_unix, use_ptyutils
+<reflow{.d,}.{native,byte}>: use_unix, use_ptyutils, use_curses
+<*.ml>: use_curses
