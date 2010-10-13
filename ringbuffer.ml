@@ -27,6 +27,13 @@ let rec read_from_string str rb offset strlen =
       rb.curr <- 0; rb.full <- true;
       read_from_string str rb (offset + amt) len
 
+let string_of_ringbuffer rb = match rb.full with
+  | false -> let str = String.create rb.curr in String.blit rb.buffer 0 str 0 rb.curr; str
+  | true -> let str = String.create rb.length in
+      String.blit rb.buffer rb.curr str 0 (rb.length - rb.curr);
+      String.blit rb.buffer 0 str (rb.length - rb.curr) rb.curr;
+      str
+
 let writerange fd rb first last =
   match rb.full with
     | false -> if first >= rb.curr then 0
