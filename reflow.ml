@@ -1,19 +1,9 @@
-let child _ =
-  if (Array.length Sys.argv) < 2 then
-    Unix.execv "/bin/bash" [|"/bin/bash"|]
-  else 
-    let exec = Array.append [|"/bin/sh"; "-c"|] (Array.sub Sys.argv 1 ((Array.length Sys.argv) - 1)) in
-      Unix.execv exec.(0) exec
-
 module Integer =
 struct
   type t = int
   let compare = compare
 end
-
 module SigMap = Map.Make(Integer)
-let ctrl k = char_of_int ((int_of_char k) land 0x1F)
-let signal_map = List.fold_left2 (fun a b c -> SigMap.add b c a) SigMap.empty [Sys.sigint; Sys.sigtstp] [ctrl 'C'; ctrl 'Z']
 
 let buffsize = 65536
 let in_buffsize = 1024
@@ -23,7 +13,19 @@ let in_buffer = String.create in_buffsize
 let out_buffer = String.create out_buffsize
 let need_reprint = ref false
 
+let child _ =
+  if (Array.length Sys.argv) < 2 then
+    Unix.execv "/bin/bash" [|"/bin/bash"|]
+  else 
+    let exec = Array.append [|"/bin/sh"; "-c"|] (Array.sub Sys.argv 1 ((Array.length Sys.argv) - 1)) in
+      Unix.execv exec.(0) exec
+
 let sigwinch_handler pid sg  = Unix.kill pid sg; need_reprint := true
+
+let ctrl k = char_of_int ((int_of_char k) land 0x1F)
+
+let signal_map = List.fold_left2 (fun a b c -> SigMap.add b c a) SigMap.empty [Sys.sigint; Sys.sigtstp] [ctrl 'C'; ctrl 'Z']
+
 let sigchar_handler fd sg =
   try
     let c = SigMap.find sg signal_map in
