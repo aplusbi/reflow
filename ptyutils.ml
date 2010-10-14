@@ -7,3 +7,27 @@ external set_winsize: Unix.file_descr -> winsize -> unit = "ocaml_set_winsize"
 external sigwinch_fun: unit -> int = "ocaml_sigwinch"
 
 let sigwinch = sigwinch_fun ();;
+
+(* Curses utilities*)
+let process_rb rb =
+  let rec process status =
+  in
+  let attrs = ref 0 in
+  let fg = ref 0 in
+  let bg = ref 0 in
+  let esc = ref false in
+  let process c =
+    match !esc with
+      | true -> begin
+          match c with
+            | 'm' -> Curses.attrset !attrs
+            | x when (int_of_char x) = 1 -> attrs := !attrs land Curses.A.bold
+            | x when (int_of_char x) >= 30 && (int_of_char x) <= 37 -> ()
+            | _ -> ()
+        end
+      | false -> begin
+          match int_of_char c with
+            | 0o33 -> esc := true; ()
+            | i -> let _ = Curses.addch i in ()
+        end
+  in process
