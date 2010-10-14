@@ -61,3 +61,15 @@ let iter f rb =
     f rb.buffer.[i]
   done
 
+let get rb i = match rb.full with
+  | false -> if i >= rb.curr then
+      invalid_arg "Out of range"
+    else
+      rb.buffer.[i]
+  | true -> if i >= rb.length then
+      invalid_arg "Out of range"
+    else
+      let x = i + rb.curr in
+        if x < rb.length then rb.buffer.[x]
+        else rb.buffer.[x - rb.length]
+
