@@ -31,6 +31,6 @@ let process_rb rb =
             | i -> let _ = Curses.addch i in ()
         end
   in
-    for i = 0 to Ringbuffer.length rb do
+    for i = 0 to Ringbuffer.used_length rb do
       process 0
     done
