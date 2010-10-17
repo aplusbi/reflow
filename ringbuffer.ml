@@ -73,3 +73,9 @@ let get rb i = match rb.full with
         if x < rb.length then rb.buffer.[x]
         else rb.buffer.[x - rb.length]
 
+let length rb = rb.length
+
+let used_length rb = match rb.full with
+  | true -> rb.length
+  | false -> rb.curr
+
