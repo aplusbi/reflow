@@ -10,19 +10,19 @@ let sigwinch = sigwinch_fun ();;
 
 (* Curses utilities*)
 let process_rb rb =
-  let rec process status =
-  in
   let attrs = ref 0 in
   let fg = ref 0 in
   let bg = ref 0 in
   let esc = ref false in
-  let process c =
+  let process i =
+    let c = Ringbuffer.get rb i in
     match !esc with
       | true -> begin
           match c with
             | 'm' -> Curses.attrset !attrs
             | x when (int_of_char x) = 1 -> attrs := !attrs land Curses.A.bold
             | x when (int_of_char x) >= 30 && (int_of_char x) <= 37 -> ()
+            | x when (int_of_char x) >= 40 && (int_of_char x) <= 47 -> ()
             | _ -> ()
         end
       | false -> begin
@@ -30,4 +30,7 @@ let process_rb rb =
             | 0o33 -> esc := true; ()
             | i -> let _ = Curses.addch i in ()
         end
-  in process
+  in
+    for i = 0 to Ringbuffer.length rb do
+      process 0
+    done
