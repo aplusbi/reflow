@@ -9,28 +9,29 @@ external sigwinch_fun: unit -> int = "ocaml_sigwinch"
 let sigwinch = sigwinch_fun ();;
 
 (* Curses utilities*)
-let process_rb rb =
+let process_buffer get length buff =
   let attrs = ref 0 in
   let fg = ref 0 in
   let bg = ref 0 in
   let esc = ref false in
   let process i =
-    let c = Ringbuffer.get rb i in
+    let c = get buff i in
+    let x = int_of_char c in
     match !esc with
       | true -> begin
           match c with
-            | 'm' -> Curses.attrset !attrs
-            | x when (int_of_char x) = 1 -> attrs := !attrs land Curses.A.bold
-            | x when (int_of_char x) >= 30 && (int_of_char x) <= 37 -> ()
-            | x when (int_of_char x) >= 40 && (int_of_char x) <= 47 -> ()
+            | 'm' -> Curses.attrset !attrs; esc := false
+            | _ when x = 1 -> attrs := !attrs land Curses.A.bold
+            | _ when x >= 30 && x <= 37 -> fg := x - 30
+            | _ when x >= 40 && x <= 47 -> bg := x - 40
             | _ -> ()
         end
       | false -> begin
           match int_of_char c with
-            | 0o33 -> esc := true; ()
+            | 0o33 -> esc := true
             | i -> let _ = Curses.addch i in ()
         end
   in
-    for i = 0 to Ringbuffer.used_length rb do
-      process 0
+    for i = 0 to (length buff)-1 do
+      process i
     done
