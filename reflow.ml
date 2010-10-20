@@ -66,10 +66,9 @@ let _ =
               begin
                 if !need_reprint then
                   let (w, h) = Curses.get_size () in let ws = {(Ptyutils.get_winsize fd) with Ptyutils.ws_row=h; Ptyutils.ws_col=w} in Ptyutils.set_winsize fd ws;
-                  (*Ringbuffer.iter (fun x -> Curses.addch (int_of_char x)) buffer; read_len := 0; need_reprint := false*)
-                  Ptyutils.process_buffer Ringbuffer.get Ringbuffer.used_length buffer; read_len := 0; need_reprint := false
+                  Cursesutils.process_buffer Ringbuffer.get Ringbuffer.used_length buffer; read_len := 0; need_reprint := false
                   else
-                    Ptyutils.process_buffer String.get (fun x -> !read_len) out_buffer; read_len := 0
+                    Cursesutils.process_buffer String.get (fun x -> !read_len) out_buffer; read_len := 0
               end);
             (if List.mem Unix.stdin input then
               begin
