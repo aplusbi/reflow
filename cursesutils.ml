@@ -34,11 +34,12 @@ let is_valid_csi_ender = function
   | _ -> false
 
 let process_escape = function [] -> None
+  | _::[] -> None
   | h::t as l -> match List.nth t ((List.length t) - 1) with
       | '[' when is_valid_csi_ender h -> interpret_csi l
       | _ -> None
 
-let process_buffer get length buff =
+let process_buffer get length buff out_buff =
   let esc = ref false in
   let ebuff = ref [] in
   let process i =
@@ -47,12 +48,13 @@ let process_buffer get length buff =
       | true -> begin
           ebuff := c::(!ebuff);
           match process_escape !ebuff with None -> ()
-            | Some(l) -> esc := false
+            | Some(l) -> esc := false; ebuff := [];
+                         List.iter (fun x -> Ringarray.write_single x out_buff) l
         end
       | false -> begin
           match int_of_char c with
             | 0o33 -> esc := true
-            | i -> let _ = Curses.addch i in ()
+            | x -> Ringarray.write_single (Ch x) out_buff
         end
   in 
     for i = 0 to (length buff)-1 do

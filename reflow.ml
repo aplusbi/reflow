@@ -8,9 +8,9 @@ module SigMap = Map.Make(Integer)
 let buffsize = 65536
 let in_buffsize = 1024
 let out_buffsize = 65536
-let buffer = Ringbuffer.create buffsize
 let in_buffer = String.create in_buffsize
 let out_buffer = String.create out_buffsize
+let out_array = Ringarray.make 32768 (Cursesutils.Ch 0)
 let need_reprint = ref false
 
 let child _ =
@@ -43,7 +43,12 @@ let setup _ =
   let _ = Curses.initscr () in at_exit Curses.endwin;
   let _ = Curses.raw () in
   let _ = Curses.noecho () in
+  let _ = Curses.start_color () in
   Sys.set_signal Sys.sigchld (Sys.Signal_handle exit)
+
+let print_curses = function Cursesutils.Ch(c) -> ignore (Curses.addch c)
+  | Cursesutils.Attr(a) -> Curses.attrset a
+  | Cursesutils.Color(fg, bg) -> ignore (Curses.init_pair 1 fg bg); Curses.attron (Curses.A.color_pair 1)
 
 let _ =
   setup ();
@@ -52,23 +57,20 @@ let _ =
     | (0, _, _) -> child ()
     | (pid, fd, _) ->
         setup_terminal pid fd;
-        let read_len = ref 0 in
         let input_len = ref 0 in
         while true do
           let (input, output, _) = Unix.select [Unix.stdin; fd] [Unix.stdout; fd] [] (-1.) in
             if List.mem fd input then
               begin
-              let rd_l = (Unix.read fd out_buffer !read_len (out_buffsize - !read_len)) in
-                Ringbuffer.read_from_string out_buffer buffer !read_len rd_l;
-                read_len := !read_len + rd_l
+              let rd_l = (Unix.read fd out_buffer 0 out_buffsize) in
+                Cursesutils.process_buffer String.get (fun x -> rd_l) out_buffer out_array;
               end;
             (if (List.mem Unix.stdout output) then
               begin
                 if !need_reprint then
-                  let (w, h) = Curses.get_size () in let ws = {(Ptyutils.get_winsize fd) with Ptyutils.ws_row=h; Ptyutils.ws_col=w} in Ptyutils.set_winsize fd ws;
-                  Cursesutils.process_buffer Ringbuffer.get Ringbuffer.used_length buffer; read_len := 0; need_reprint := false
+                  let (w, h) = Curses.get_size () in let ws = {(Ptyutils.get_winsize fd) with Ptyutils.ws_row=h; Ptyutils.ws_col=w} in Ptyutils.set_winsize fd ws
                   else
-                    Cursesutils.process_buffer String.get (fun x -> !read_len) out_buffer; read_len := 0
+                    Ringarray.iter print_curses out_array
               end);
             (if List.mem Unix.stdin input then
               begin
@@ -78,5 +80,5 @@ let _ =
               begin
                 let _ = Unix.write fd in_buffer 0 !input_len in input_len := 0
               end);
-            let _ = Curses.refresh () in ();
+            let _ = Curses.refresh () in ignore (Curses.move 0 0);
         done
