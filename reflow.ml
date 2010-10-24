@@ -7,7 +7,7 @@ module SigMap = Map.Make(Integer)
 
 let buffsize = 65536
 let in_buffsize = 1024
-let out_buffsize = 65536
+let out_buffsize = 4096
 let in_buffer = String.create in_buffsize
 let out_buffer = String.create out_buffsize
 let out_array = Ringarray.make 32768 (Cursesutils.Ch 0)
@@ -49,6 +49,12 @@ let setup _ =
 let print_curses = function Cursesutils.Ch(c) -> ignore (Curses.addch c)
   | Cursesutils.Attr(a) -> Curses.attrset a
   | Cursesutils.Color(fg, bg) -> ignore (Curses.init_pair 1 fg bg); Curses.attron (Curses.A.color_pair 1)
+
+let setup_logging file = Unix.openfile file [Unix.O_WRONLY;  Unix.O_CREAT] 0o666
+
+let log_curses fd = function Cursesutils.Ch(c) -> ignore (Unix.write fd (String.make 1 (char_of_int c)) 0 1)
+  | Cursesutils.Attr(a) -> let str = "#Attr " ^ (string_of_int a) ^ "#" in ignore (Unix.write fd str 0 (String.length str))
+  | Cursesutils.Color(fg, bg) -> let str = "@CColor " ^ (string_of_int fg) ^ "," ^ (string_of_int bg) ^ "@" in ignore (Unix.write fd str 0 (String.length str))
 
 let _ =
   setup ();

@@ -13,7 +13,7 @@ let rec write arr rb = match (rb.length - rb.curr) with
       in wr 0
 
 let rec write_single x rb = if (rb.length - rb.curr) = 0 then
-  (rb.curr <- 0; rb.full <- true); rb.buffer.(rb.curr) <- x; rb.curr <- rb.curr + 1
+  begin (rb.curr <- 0; rb.full <- true) end; rb.buffer.(rb.curr) <- x; rb.curr <- rb.curr + 1
 
 let array_of_ringbuffer rb = match rb.full with
   | false -> Array.sub rb.buffer 0 rb.curr 
