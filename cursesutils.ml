@@ -21,7 +21,7 @@ let interpret_csi = function [] -> None
   | h::t -> 
     let rec to_digits b d acc = function [] -> acc
       | x::xs when x = ';' -> to_digits 1 0 (d::acc) xs
-      | x::xs when x >= '0' && x <='9' -> to_digits (b * 10) (d + ((int_of_char x) * b)) acc xs
+      | x::xs when x >= '0' && x <='9' -> to_digits (b * 10) (d + (((int_of_char x) - (int_of_char '0')) * b)) acc xs
       | _::xs -> to_digits b d acc xs
     in
     let params = to_digits 1 0 [] t in
