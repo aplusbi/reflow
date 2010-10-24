@@ -1,32 +1,37 @@
 type character = Ch of int
   | Color of int * int
   | Attr of int
+  | Attroff
+  | Newline
 
 let is_control c = (c land 0x60) = 0
 
 let interpret_csi_sgr params =
-  let attrs = ref 0 in
+  let attrs = ref (-1) in
   let fg = ref 0 in
   let  bg = ref 0 in
   let check_param = function
+    | 0 -> attrs := 0
     | 1 -> attrs := !attrs lor Curses.A.bold
     | x when x >= 30 && x <= 37 -> fg := x - 30
     | x when x >= 40 && x <= 47 -> bg := x - 40
     | _ -> ()
   in List.iter check_param params;
      let return = if !fg != 0 || !bg != 0 then [Color(!fg, !bg)] else [] in
-       Some(if !attrs != 0 then Attr(!attrs)::return else return)
+       match !attrs with 
+       | -1 -> return
+       | 0 -> Attroff::return
+       | a -> Attr(a)::return
 
 let interpret_csi = function [] -> None
   | h::t -> 
-    let rec to_digits b d acc = function [] -> acc
-      | x::xs when x = ';' -> to_digits 1 0 (d::acc) xs
+    let rec to_digits b d acc = function [] -> d::acc
       | x::xs when x >= '0' && x <='9' -> to_digits (b * 10) (d + (((int_of_char x) - (int_of_char '0')) * b)) acc xs
-      | _::xs -> to_digits b d acc xs
+      | _::xs -> to_digits 1 0 (d::acc) xs
     in
     let params = to_digits 1 0 [] t in
       match h with
-        | 'm' -> interpret_csi_sgr params
+        | 'm' -> Some(interpret_csi_sgr params)
         | _ -> None
 
 let is_valid_csi_ender = function
@@ -54,6 +59,8 @@ let process_buffer get length buff out_buff =
       | false -> begin
           match int_of_char c with
             | 0o33 -> esc := true
+            | 13 -> Ringarray.write_single Newline out_buff
+            | 10 -> ()
             | x -> Ringarray.write_single (Ch x) out_buff
         end
   in 

@@ -46,17 +46,21 @@ let setup _ =
   let _ = Curses.start_color () in
   Sys.set_signal Sys.sigchld (Sys.Signal_handle exit)
 
+let color_num = ref 1
 let print_curses = function Cursesutils.Ch(c) -> ignore (Curses.addch c)
-  | Cursesutils.Attr(a) -> Curses.attrset a
-  | Cursesutils.Color(fg, bg) -> ignore (Curses.init_pair 1 fg bg); Curses.attron (Curses.A.color_pair 1)
-
-let setup_logging file = Unix.openfile file [Unix.O_WRONLY;  Unix.O_CREAT] 0o666
+  | Cursesutils.Attr(a) -> Curses.attron a
+  | Cursesutils.Color(fg, bg) -> ignore (Curses.init_pair !color_num fg bg); Curses.attron (Curses.A.color_pair !color_num); incr color_num
+  | Cursesutils.Attroff -> Curses.attrset 0
+  | Cursesutils.Newline -> let y, x = Curses.getyx (Curses.stdscr ()) in ignore (Curses.move (y+1) 0)
 
 let log_curses fd = function Cursesutils.Ch(c) -> ignore (Unix.write fd (String.make 1 (char_of_int c)) 0 1)
-  | Cursesutils.Attr(a) -> let str = "#Attr " ^ (string_of_int a) ^ "#" in ignore (Unix.write fd str 0 (String.length str))
-  | Cursesutils.Color(fg, bg) -> let str = "@CColor " ^ (string_of_int fg) ^ "," ^ (string_of_int bg) ^ "@" in ignore (Unix.write fd str 0 (String.length str))
+  | Cursesutils.Attr(a) -> let str = "$Attr " ^ (string_of_int a) ^ "$" in ignore (Unix.write fd str 0 (String.length str))
+  | Cursesutils.Color(fg, bg) -> let str = "@Color " ^ (string_of_int fg) ^ "," ^ (string_of_int bg) ^ "@" in ignore (Unix.write fd str 0 (String.length str))
+  | Cursesutils.Attroff -> let str = "$Attr 0$" in ignore (Unix.write fd str 0 (String.length str))
+  | Cursesutils.Newline -> ignore (Unix.write fd "\n" 0 1)
 
 let _ =
+        let log_fd = Unix.openfile "logging.txt" [Unix.O_WRONLY;  Unix.O_CREAT; Unix.O_TRUNC] 0o666 in at_exit (fun _ -> Unix.close log_fd);
   setup ();
   match Ptyutils.forkpty () with 
     | (-1, _, _) -> failwith "Error"
@@ -70,13 +74,14 @@ let _ =
               begin
               let rd_l = (Unix.read fd out_buffer 0 out_buffsize) in
                 Cursesutils.process_buffer String.get (fun x -> rd_l) out_buffer out_array;
+                if rd_l > 0 then ignore (Unix.write log_fd "*****\n\n" 0 7);Ringarray.iter (log_curses log_fd) out_array
               end;
             (if (List.mem Unix.stdout output) then
               begin
                 if !need_reprint then
                   let (w, h) = Curses.get_size () in let ws = {(Ptyutils.get_winsize fd) with Ptyutils.ws_row=h; Ptyutils.ws_col=w} in Ptyutils.set_winsize fd ws
                   else
-                    Ringarray.iter print_curses out_array
+                          color_num := 1; Ringarray.iter print_curses out_array; 
               end);
             (if List.mem Unix.stdin input then
               begin
