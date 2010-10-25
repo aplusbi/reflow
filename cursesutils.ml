@@ -12,7 +12,7 @@ let interpret_csi_sgr params =
   let  bg = ref 0 in
   let check_param = function
     | 0 -> attrs := 0
-    | 1 -> attrs := !attrs lor Curses.A.bold
+    | 1 -> attrs := Curses.A.bold
     | x when x >= 30 && x <= 37 -> fg := x - 30
     | x when x >= 40 && x <= 47 -> bg := x - 40
     | _ -> ()
@@ -67,4 +67,30 @@ let process_buffer get length buff out_buff =
     for i = 0 to (length buff)-1 do
       process i
     done
+
+let tail n l = 
+  let rec remove = function (_, []) -> []
+    | (0, ls) -> ls
+    | (x, h::t) -> remove ((x-1), t)
+  in
+  let len = (List.length l) - n in
+    if len < 0 then l else remove (len, l)
+
+let get_valid_lines num_lines width buff =
+  let rec add_blanks n l = match n with 0 -> l
+    | _ -> add_blanks (n-1) (Ch(int_of_char ' ')::l)
+  in
+  let len = Ringarray.used_length buff in
+  let rec process = function 
+    | (i, _, l) when i >= len -> (List.rev l)::[]
+    | (i, 0, l) -> (List.rev (Newline::l))::(process (i, width, []))
+    | (i, w, l) ->
+        begin
+          match Ringarray.get buff i with
+            | Newline -> (List.rev (Newline::(add_blanks (w-1) l)))::(process (i+1, width, []))
+            | Ch(_) as c -> process (i+1, w-1, c::l)
+            | a -> process (i+1, w, a::l)
+        end
+  in
+      tail num_lines (process (0, width, []))
 
