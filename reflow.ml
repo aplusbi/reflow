@@ -69,20 +69,22 @@ let _ =
               let rd_l = (Unix.read fd out_buffer 0 out_buffsize) in
                 Cursesutils.process_buffer String.get (fun x -> rd_l) out_buffer out_array
               end;
-            (if (List.mem Unix.stdout output) then
+            if (List.mem Unix.stdout output) then
               begin
                 if !need_reprint then
                   let (w, h) = Curses.get_size () in let ws = {(Ptyutils.get_winsize fd) with Ptyutils.ws_row=h; Ptyutils.ws_col=w} in Ptyutils.set_winsize fd ws
                   else
-                          color_num := 1; let out_list = Cursesutils.get_valid_lines (height-6) width out_array in List.iter (fun x -> List.iter print_curses x) out_list; (*Ringarray.iter print_curses out_array;*)
-              end);
-            (if List.mem Unix.stdin input then
+                          color_num := 1;
+                          let out_list = Cursesutils.get_valid_lines (height-6) width out_array in
+                            List.iter (fun x -> List.iter print_curses x) out_list
+              end;
+            if List.mem Unix.stdin input then
               begin
                 let c = char_of_int (Curses.getch ()) in in_buffer.[!input_len] <- c; input_len := !input_len + 1
-              end);
-            (if List.mem fd output then
+              end;
+            if List.mem fd output then
               begin
                 let _ = Unix.write fd in_buffer 0 !input_len in input_len := 0
-              end);
+              end;
             let _ = Curses.refresh () in ignore (Curses.move 0 0);
         done
