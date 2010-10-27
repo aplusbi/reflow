@@ -34,6 +34,15 @@ let string_of_ringbuffer rb = match rb.full with
       String.blit rb.buffer 0 str (rb.length - rb.curr) rb.curr;
       str
 
+let substring_of_ringbuffer rb start len = match rb.full with
+  | false -> String.sub rb.buffer start len
+  | true -> let s = rb.curr + start in
+    let s' = if s < rb.length then s else s - rb.length in
+      if s' + len < rb.length then
+        String.sub rb.buffer s' len
+      else
+        (String.sub rb.buffer s' (rb.length - s')) ^ (String.sub rb.buffer 0 (len - (rb.length - s')))
+
 let writerange fd rb first last =
   match rb.full with
     | false -> if first >= rb.curr then 0 else
