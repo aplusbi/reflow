@@ -22,41 +22,34 @@ let child _ =
 
 let sigwinch_handler pid sg  = Unix.kill pid sg; need_reprint := true
 
-let ctrl k = char_of_int ((int_of_char k) land 0x1F)
-
-let signal_map = List.fold_left2 (fun a b c -> SigMap.add b c a) SigMap.empty [Sys.sigint; Sys.sigtstp] [ctrl 'C'; ctrl 'Z']
-
-let sigchar_handler fd sg =
-  try
-    let c = SigMap.find sg signal_map in
-    let _ = Unix.write fd (String.make 1 c) 0 1 in ()
-  with Not_found -> ()
-
-let setup_terminal pid fd =
-  Sys.set_signal Ptyutils.sigwinch (Sys.Signal_handle (sigwinch_handler pid));
-  let ws = Ptyutils.get_winsize Unix.stdout in Ptyutils.set_winsize fd ws;
-  let close_fd _ = Unix.close fd in at_exit close_fd
-
 let clear_scr _ =
   let str_clear = "\027[H\027[2J" in
     Unix.write Unix.stdout str_clear 0 (String.length str_clear)
 
+let setup_terminal pid fd =
+  Sys.set_signal Ptyutils.sigwinch (Sys.Signal_handle (sigwinch_handler pid));
+  let ws = Ptyutils.get_winsize Unix.stdout in
+    Ptyutils.set_winsize fd ws;
+    let close_fd _ = Unix.close fd in at_exit close_fd
 
 let setup _ =
   let _ = clear_scr () in
   let terminfo = Unix.tcgetattr Unix.stdin in
-  let new_terminfo = {terminfo with Unix.c_isig = false; Unix.c_icanon = false; Unix.c_vmin = 0; Unix.c_vtime = 10; Unix.c_echo = false } in
+  let new_terminfo = {terminfo with Unix.c_isig = false; Unix.c_icanon = false; Unix.c_vmin = 0; Unix.c_vtime = 0; Unix.c_echo = false } in
   let reset_stdin () = Unix.tcsetattr Unix.stdin Unix.TCSAFLUSH terminfo in at_exit reset_stdin;
-  Unix.tcsetattr Unix.stdin Unix.TCSAFLUSH new_terminfo;
-  Sys.set_signal Sys.sigchld (Sys.Signal_handle exit)
+                                                                            Unix.tcsetattr Unix.stdin Unix.TCSAFLUSH new_terminfo;
+                                                                            Sys.set_signal Sys.sigchld (Sys.Signal_handle exit)
 
 let resize fd =
   let {Ptyutils.ws_row=rows; Ptyutils.ws_col=cols} as ws = Ptyutils.get_winsize Unix.stdout in
     Ptyutils.set_winsize fd ws;
     let _ = clear_scr () in
-    let lines = Escutils.process buffer rows cols in
-    List.iter (fun x -> ignore (Unix.write Unix.stdout x 0 (String.length x)); ignore (Unix.write Unix.stdout "\n" 0 1)) lines;
-    need_reprint := false
+      ignore (Ringbuffer.write Unix.stdout buffer);
+      need_reprint := false
+
+let rec restart_on_EINTR f x =
+  try f x with
+    | Unix.Unix_error(Unix.EINTR, _, _) -> restart_on_EINTR f x
 
 let _ =
   setup ();
@@ -65,26 +58,19 @@ let _ =
     | (0, _, _) -> child ()
     | (pid, fd, _) ->
         setup_terminal pid fd;
-        let read_len = ref 0 in
-        let input_len = ref 0 in
         while true do
-          let (input, output, _) = Unix.select [Unix.stdin; fd] [fd] [] (5.) in
+          let (input, _, _) = restart_on_EINTR (Unix.select [Unix.stdin; fd] [] []) (-1.) in
             if List.mem fd input then
               begin
-              match (Unix.read fd out_buffer !read_len (out_buffsize - !read_len)) with
-                | 0 -> ()
-                | rd_l -> Ringbuffer.read_from_string out_buffer buffer !read_len rd_l;
-                read_len := !read_len + rd_l
-              end;
-            if !read_len != 0 then
-              begin
-                if !need_reprint then
-                  (resize fd; read_len := 0)
-                else
-                  let _ = Unix.write Unix.stdout out_buffer 0 !read_len in read_len := 0
+                let len = Unix.read fd out_buffer 0 out_buffsize in
+                  Ringbuffer.read_from_string out_buffer buffer 0 len;
+                  if !need_reprint then
+                    resize fd
+                  else
+                    ignore (Unix.write Unix.stdout out_buffer 0 len) 
               end;
             if List.mem Unix.stdin input then
-              input_len := !input_len + (Unix.read Unix.stdin in_buffer 0 in_buffsize);
-            if List.mem fd output && !input_len != 0 then
-              let _ = Unix.write fd in_buffer 0 !input_len in input_len := 0
+              let len = (Unix.read Unix.stdin in_buffer 0 in_buffsize) in
+                ignore (Unix.write fd in_buffer 0 len)
         done
+

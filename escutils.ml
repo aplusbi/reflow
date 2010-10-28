@@ -25,23 +25,23 @@ let find_line_rev rb width len =
 
 let find_newline_rev rb len =
   let rec find i =
-    if (Ringbuffer.get rb i = '\n') then
-      (i, Ringbuffer.substring_of_ringbuffer rb (i+1) (len - (i+1)))
+    if i != len && (Ringbuffer.get rb i = '\n') then
+      (i, Ringbuffer.substring_of_ringbuffer rb (i+1) (1 + len - (i+1)))
     else
       begin
         if (i = 0) then
-          (i, Ringbuffer.substring_of_ringbuffer rb i (len - i))
+          (i, Ringbuffer.substring_of_ringbuffer rb i (1 + len - i))
         else
           find (i - 1)
       end
   in
-    find (len - 1)
+    find len
 
 let process rb rows width =
   let rec pr len row acc = match (len, row) with
     | (l, _) when l <= 0 -> acc
     | (_, 0) -> acc
-    | _ -> let (l, str) = find_line_rev rb width len in
+    | _ -> let (l, str) = find_newline_rev rb (*width*) len in
         pr l (row-1) (str::acc)
-  in pr (Ringbuffer.used_length rb) rows []
+  in pr ((Ringbuffer.used_length rb) - 1) rows []
 
