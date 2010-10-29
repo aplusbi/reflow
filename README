@@ -19,12 +19,15 @@ uses Ocamlbuild to compile and link the project.
 Installation
 ------------
 
-Running:
+Simply running:
 
-    Ocamlbuild reflow.byte
+	make
 
 from the root project directory will build the executable
 'reflow.byte' and place it in the _build directory (with a
 symlink in the project root).  If you have the native
-OCaml compiler installed you can also build 'reflow.native'.
+OCaml compiler installed you can also build a native
+executable by running:
+
+	make native
 
