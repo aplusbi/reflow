@@ -1,12 +1,9 @@
 open Ocamlbuild_plugin
 open Command
 
-let ptyutils = "ocaml_forkpty.o";;
+let ptyutils = "ptyutils_stub.o";;
 let clibdir = "-L/usr/lib";;
 let clibs = "-lutil";;
-
-(*let cc = env "%.c" in*)
-  (*Cmd(S[ocamlc; A "-cc"; A "gcc"; T(tags_of_pathname cc); A cc]);;*)
 
 dispatch begin function
   | After_rules ->
