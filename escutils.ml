@@ -45,12 +45,14 @@ let find_newline_rev rb len =
   in
     find len
 
-let process rb rows width =
-  let rec pr len row acc = match (len, row) with
-    | (l, _) when l <= 0 -> acc
-    | (_, 0) -> acc
+let process f rb rows width =
+  let rec pr len row = match (len, row) with
+    | (l, _) when l <= 0 -> ()
+    | (_, 0) -> ()
     | _ -> let (l, str) = find_newline_rev rb len in
-        pr l (row-1) ((split_on_width str 0 (String.length str) width) @ acc)
+      let lines = split_on_width str 0 (String.length str) width in
+        pr l (row-(List.length lines));
+        List.iter f lines
   in
-    pr ((Ringbuffer.used_length rb) - 1) rows []
+    pr ((Ringbuffer.used_length rb) - 1) rows
 
