@@ -22,7 +22,14 @@ let resize fd =
     let _ = clear_scr () in
       ignore (Ringbuffer.unix_write Unix.stdout buffer)
 
-let sigwinch_handler pid fd sg = Unix.kill pid sg; resize fd
+let resize_list fd =
+  let {Ptyutils.ws_row=rows; Ptyutils.ws_col=cols} as ws = Ptyutils.get_winsize Unix.stdout in
+    Ptyutils.set_winsize fd ws;
+    let _ = clear_scr () in
+    let lines = Escutils.process buffer rows cols in
+      List.iter (fun x -> ignore (Unix.write Unix.stdout x 0 (String.length x))) lines
+
+let sigwinch_handler pid fd sg = Unix.kill pid sg; resize_list fd
 
 let rec restart_on_EINTR f x =
   try f x with
