@@ -4,7 +4,7 @@ let is_valid_csi_ender = function
 
 let rec split_on_width str start finish width =
   let rec line i len esc =
-    if len >= width || i >= finish then
+    if len > width || i >= finish then
       let amt1 = finish - start in
       let amt2 = i - start in
       let amt = min amt1 amt2 in
@@ -12,10 +12,13 @@ let rec split_on_width str start finish width =
     else
       begin
         match esc with
-          | true -> if is_valid_csi_ender str.[i] then
-              line (i+1) len false
-            else
-              line (i+1) len true
+          | true ->
+              begin
+                match str.[i] with
+                  | 'K' -> (finish, "")
+                  | c when is_valid_csi_ender c -> line (i+1) len false
+                  | _ -> line (i+1) len true
+              end
           | false ->
               begin
                 match str.[i] with
@@ -28,8 +31,9 @@ let rec split_on_width str start finish width =
     if start >= finish then
       []
     else
-      let (x, l) = line start 0 false in
-        l::(split_on_width str x finish width)
+      match line start 0 false with
+        | (x, "") -> split_on_width str x finish width
+        | (x, l) -> l::(split_on_width str x finish width)
 
 let find_newline_rev rb len =
   let rec find i =
@@ -45,14 +49,18 @@ let find_newline_rev rb len =
   in
     find len
 
+let rec first n l = match n, l with
+  | (0, _) | (_, []) -> []
+  | (_, h::t) -> h::(first (n-1) t)
+
 let process f rb rows width =
   let rec pr len row = match (len, row) with
     | (l, _) when l <= 0 -> ()
-    | (_, 0) -> ()
+    | (_, r) when r <= 0 -> ()
     | _ -> let (l, str) = find_newline_rev rb len in
       let lines = split_on_width str 0 (String.length str) width in
         pr l (row-(List.length lines));
-        List.iter f lines
+        List.iter f (first rows lines)
   in
     pr ((Ringbuffer.used_length rb) - 1) rows
 
