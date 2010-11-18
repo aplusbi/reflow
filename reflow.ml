@@ -65,7 +65,9 @@ let main pid fd =
 
 let _ =
   setup ();
-  match Ptyutils.forkpty () with 
-    | (-1, _, _) -> failwith "Error"
-    | (0, _, _) -> child ()
-    | (pid, fd, _) -> Unix.handle_unix_error (main pid) fd
+  Unix.handle_unix_error
+    (fun _ ->
+       match Ptyutils.forkpty () with 
+         | (0, _, _) -> child ()
+         | (pid, fd, _) -> main pid fd
+    ) ()

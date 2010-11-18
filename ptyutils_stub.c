@@ -12,6 +12,7 @@
 #include <caml/memory.h>
 #include <caml/alloc.h>
 #include <caml/callback.h>
+#include <caml/unixsupport.h>
 
 value ocaml_sigwinch(value unit)
 {	
@@ -20,34 +21,42 @@ value ocaml_sigwinch(value unit)
 
 value ocaml_forkpty(value unit)
 {
+	CAMLparam1(unit);
 	int fd = -1;
 	pid_t pid = -1;
 	char name[BUFSIZ];
 
 	pid = forkpty(&fd, name, NULL, NULL);
+	if(pid == -1)
+		uerror("forkpty", Nothing);
 
-	value ret = caml_alloc_tuple(3*sizeof(value));
+	CAMLlocal1(ret);
+	ret = caml_alloc_tuple(3*sizeof(value));
 	Store_field(ret, 0, Val_int(pid));
 	Store_field(ret, 1, Val_int(fd));
 	Store_field(ret, 2, caml_copy_string(name));
-	return ret;
+	CAMLreturn(ret);
 }
 
 value ocaml_openpty(value unit)
 {
+	CAMLparam1(unit);
 	int master = -1;
 	int slave = -1;
 	int rv = -1;
 	char name[BUFSIZ];
 
 	rv = openpty(&master, &slave, name, NULL, NULL);
+	if(rv == -1)
+		uerror("openpty", Nothing);
 
-	value ret = caml_alloc_tuple(4*sizeof(value));
+	CAMLlocal1(ret);
+	ret = caml_alloc_tuple(4*sizeof(value));
 	Store_field(ret, 0, Val_int(rv));
 	Store_field(ret, 1, Val_int(master));
 	Store_field(ret, 2, Val_int(slave));
 	Store_field(ret, 3, caml_copy_string(name));
-	return ret;
+	CAMLreturn(ret);
 }
 
 value ocaml_get_winsize(value fd)
@@ -56,7 +65,8 @@ value ocaml_get_winsize(value fd)
 
 	int ifd = Int_val(fd);
 	struct winsize ws;
-	ioctl(ifd, TIOCGWINSZ, &ws);
+	if(-1 == ioctl(ifd, TIOCGWINSZ, &ws))
+		uerror("get_winsize", fd);
 
 	CAMLlocal1(ret);
 	ret = caml_alloc(4, 0);
@@ -77,7 +87,8 @@ value ocaml_set_winsize(value fd, value winp)
 	ws.ws_col = Int_val(Field(winp, 1));
 	ws.ws_xpixel = Int_val(Field(winp, 2));
 	ws.ws_ypixel = Int_val(Field(winp, 3));
-	ioctl(ifd, TIOCSWINSZ, &ws);
+	if(-1 == ioctl(ifd, TIOCSWINSZ, &ws))
+		uerror("set_winsize", fd);
 
 	CAMLreturn0;
 }
