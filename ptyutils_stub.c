@@ -120,8 +120,10 @@ value ocaml_unlockpt(value fd)
 value ocaml_ptsname(value fd)
 {
 	CAMLparam1(fd);
-	char name[1024];
-	if(ptsname_r(Int_val(fd), name, 1024) != 0)
+	/*char name[1024];*/
+	/*if(ptsname_r(Int_val(fd), name, 1024) != 0)*/
+	char *name = ptsname(Int_val(fd));
+	if(name == 0)
 		uerror("ptsname", Nothing);
 	value ret = caml_copy_string(name);
 	CAMLreturn(ret);
