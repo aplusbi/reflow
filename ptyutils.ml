@@ -7,20 +7,11 @@ external sigwinch_fun: unit -> int = "ocaml_sigwinch"
 
 let sigwinch = sigwinch_fun ();;
 
-let posix_openpt flags =
-        try
-                Unix.openfile "/dev/ptmx" flags 0
-        with Unix.Unix_error(err, _, arg) -> raise (Unix.Unix_error(err, "posix_openpt", arg))
-
-external grantpt: Unix.file_descr -> unit = "ocaml_grantpt"
-external unlockpt: Unix.file_descr -> unit = "ocaml_unlockpt"
-external ptsname: Unix.file_descr -> string = "ocaml_ptsname"
-
 let posix_forkpty _ =
-        let master = posix_openpt [Unix.O_RDWR] in
-        grantpt master;
-        unlockpt master;
-        let name = ptsname master in
+        let master = ExtUnix.All.posix_openpt [Unix.O_RDWR] in
+        ExtUnix.All.grantpt master;
+        ExtUnix.All.unlockpt master;
+        let name = ExtUnix.All.ptsname master in
         let slave = Unix.openfile name [Unix.O_RDWR; Unix.O_NOCTTY] 0 in
         match Unix.fork () with
         | 0 ->
