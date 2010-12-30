@@ -5,6 +5,12 @@ Reflow is a command line utility that runs a sub-process
 as transparently as possible.  When the controlling terminal
 is resized, reflow will wrap any visible text.
 
+License
+-------
+
+Reflow is currently licensed under the Apache 2.0 license.
+Contact me if you need other licensing options.
+
 Status
 ------
 
@@ -21,13 +27,9 @@ Installation
 
 Simply running:
 
+	./configure
 	make
+	make install
 
-from the root project directory will build the executable
-'reflow.byte' and place it in the _build directory (with a
-symlink in the project root).  If you have the native
-OCaml compiler installed you can also build a native
-executable by running:
-
-	make native
-
+from the root project directory will build and install
+the exectuble.

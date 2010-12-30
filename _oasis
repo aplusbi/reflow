@@ -4,9 +4,11 @@ Version:     0.2
 Synopsis:    Text reflowing for terminal applications
 Authors:     Niki Yoshiuchi
 License:     Apache-2.0
+Plugins:      DevFiles (0.2)
 
 Library ptyutils
   Path:       .
+  Install: false
   BuildTools: ocamlbuild
   Modules: Ptyutils
   CSources: ptyutils_stub.c
@@ -14,7 +16,7 @@ Library ptyutils
 
 Executable reflow
   Path:       .
-  Install: false
+  Install: true
   Custom: true
   CompiledObject: best
   BuildTools: ocamlbuild
