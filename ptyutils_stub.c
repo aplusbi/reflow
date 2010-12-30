@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <pty.h>
+#include<fcntl.h>
 #include <termios.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -91,5 +91,41 @@ value ocaml_set_winsize(value fd, value winp)
 		uerror("set_winsize", fd);
 
 	CAMLreturn0;
+}
+
+value ocaml_posix_openpt(value flags)
+{
+	CAMLparam1(flags);
+	int fd = posix_openpt(O_RDWR);
+	if(fd == -1)
+		uerror("posix_openpt", Nothing);
+	CAMLreturn(Val_int(fd)); }
+
+value ocaml_grantpt(value fd)
+{
+	CAMLparam1(fd);
+	if(grantpt(Int_val(fd)) == -1)
+		uerror("grantpt", Nothing);
+	CAMLreturn0;
+}
+
+value ocaml_unlockpt(value fd)
+{
+	CAMLparam1(fd);
+	if(unlockpt(Int_val(fd)) == -1)
+		uerror("unlockpt", Nothing);
+	CAMLreturn0;
+}
+
+value ocaml_ptsname(value fd)
+{
+	CAMLparam1(fd);
+	/*char name[1024];*/
+	/*if(ptsname_r(Int_val(fd), name, 1024) != 0)*/
+	char *name = ptsname(Int_val(fd));
+	if(name == 0)
+		uerror("ptsname", Nothing);
+	value ret = caml_copy_string(name);
+	CAMLreturn(ret);
 }
 
