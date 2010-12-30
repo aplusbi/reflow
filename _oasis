@@ -1,0 +1,23 @@
+OASISFormat: 0.2
+Name:        reflow
+Version:     0.2
+Synopsis:    Text reflowing for terminal applications
+Authors:     Niki Yoshiuchi
+License:     Apache-2.0
+
+Library ptyutils
+  Path:       .
+  BuildTools: ocamlbuild
+  Modules: Ptyutils
+  CSources: ptyutils_stub.c
+  BuildDepends: unix, extunix
+
+Executable reflow
+  Path:       .
+  Install: false
+  Custom: true
+  CompiledObject: best
+  BuildTools: ocamlbuild
+  MainIs:     reflow.ml
+  BuildDepends: ptyutils, unix
+  

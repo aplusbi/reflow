@@ -1,2 +1,15 @@
-<reflow{.d,}.{native,byte}>: use_unix, use_ptyutils, use_extunix
-<ptyutils.ml{,i}>: use_extunix
+# OASIS_START
+# DO NOT EDIT (digest: 78e2fe75d58bb552ce0a5c8dd67b7352)
+# Library ptyutils
+<ptyutils.{cma,cmxa}>: use_libptyutils
+"ptyutils_stub.c": pkg_unix
+"ptyutils_stub.c": pkg_extunix
+# Executable reflow
+<reflow.{native,byte}>: use_ptyutils
+<reflow.{native,byte}>: pkg_unix
+<reflow.{native,byte}>: pkg_extunix
+<*.ml{,i}>: use_ptyutils
+<*.ml{,i}>: pkg_unix
+<*.ml{,i}>: pkg_extunix
+<reflow.{native,byte}>: custom
+# OASIS_STOP
