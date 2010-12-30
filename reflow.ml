@@ -17,7 +17,7 @@ let clear_scr _ =
     Unix.write Unix.stdout str_clear 0 (String.length str_clear)
 
 let resize fd =
-  let {Ptyutils.ws_row=rows; Ptyutils.ws_col=cols} as ws = Ptyutils.get_winsize Unix.stdout in
+  let ws = Ptyutils.get_winsize Unix.stdout in
     Ptyutils.set_winsize fd ws;
     let _ = clear_scr () in
       ignore (Ringbuffer.unix_write Unix.stdout buffer)
