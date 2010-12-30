@@ -1,13 +1,12 @@
 type winsize = { ws_row:int; ws_col:int; ws_xpixel:int; ws_ypixel:int }
 
-external forkpty: unit -> int * Unix.file_descr * string = "ocaml_forkpty"
 external get_winsize: Unix.file_descr -> winsize = "ocaml_get_winsize"
 external set_winsize: Unix.file_descr -> winsize -> unit = "ocaml_set_winsize"
 external sigwinch_fun: unit -> int = "ocaml_sigwinch"
 
 let sigwinch = sigwinch_fun ();;
 
-let posix_forkpty _ =
+let forkpty _ =
         let master = ExtUnix.All.posix_openpt [Unix.O_RDWR] in
         ExtUnix.All.grantpt master;
         ExtUnix.All.unlockpt master;

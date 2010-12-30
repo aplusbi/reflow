@@ -67,7 +67,7 @@ let _ =
   setup ();
   Unix.handle_unix_error
     (fun _ ->
-       match Ptyutils.posix_forkpty () with 
+       match Ptyutils.forkpty () with 
          | (0, _, _) -> child ()
          | (pid, fd, _) -> main pid fd
     ) ()

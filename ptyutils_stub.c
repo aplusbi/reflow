@@ -14,52 +14,12 @@
 #include <caml/callback.h>
 #include <caml/unixsupport.h>
 
-value ocaml_sigwinch(value unit)
+CAMLprim value ocaml_sigwinch(value unit)
 {	
 	return Val_int(SIGWINCH);
 }
 
-value ocaml_forkpty(value unit)
-{
-	CAMLparam1(unit);
-	int fd = -1;
-	pid_t pid = -1;
-	char name[BUFSIZ];
-
-	pid = forkpty(&fd, name, NULL, NULL);
-	if(pid == -1)
-		uerror("forkpty", Nothing);
-
-	CAMLlocal1(ret);
-	ret = caml_alloc_tuple(3*sizeof(value));
-	Store_field(ret, 0, Val_int(pid));
-	Store_field(ret, 1, Val_int(fd));
-	Store_field(ret, 2, caml_copy_string(name));
-	CAMLreturn(ret);
-}
-
-value ocaml_openpty(value unit)
-{
-	CAMLparam1(unit);
-	int master = -1;
-	int slave = -1;
-	int rv = -1;
-	char name[BUFSIZ];
-
-	rv = openpty(&master, &slave, name, NULL, NULL);
-	if(rv == -1)
-		uerror("openpty", Nothing);
-
-	CAMLlocal1(ret);
-	ret = caml_alloc_tuple(4*sizeof(value));
-	Store_field(ret, 0, Val_int(rv));
-	Store_field(ret, 1, Val_int(master));
-	Store_field(ret, 2, Val_int(slave));
-	Store_field(ret, 3, caml_copy_string(name));
-	CAMLreturn(ret);
-}
-
-value ocaml_get_winsize(value fd)
+CAMLprim value ocaml_get_winsize(value fd)
 {
 	CAMLparam1(fd);
 
@@ -77,7 +37,7 @@ value ocaml_get_winsize(value fd)
 	CAMLreturn(ret);
 }
 
-value ocaml_set_winsize(value fd, value winp)
+CAMLprim value ocaml_set_winsize(value fd, value winp)
 {
 	CAMLparam2(fd, winp);
 
@@ -90,42 +50,6 @@ value ocaml_set_winsize(value fd, value winp)
 	if(-1 == ioctl(ifd, TIOCSWINSZ, &ws))
 		uerror("set_winsize", fd);
 
-	CAMLreturn0;
-}
-
-value ocaml_posix_openpt(value flags)
-{
-	CAMLparam1(flags);
-	int fd = posix_openpt(O_RDWR);
-	if(fd == -1)
-		uerror("posix_openpt", Nothing);
-	CAMLreturn(Val_int(fd)); }
-
-value ocaml_grantpt(value fd)
-{
-	CAMLparam1(fd);
-	if(grantpt(Int_val(fd)) == -1)
-		uerror("grantpt", Nothing);
-	CAMLreturn0;
-}
-
-value ocaml_unlockpt(value fd)
-{
-	CAMLparam1(fd);
-	if(unlockpt(Int_val(fd)) == -1)
-		uerror("unlockpt", Nothing);
-	CAMLreturn0;
-}
-
-value ocaml_ptsname(value fd)
-{
-	CAMLparam1(fd);
-	/*char name[1024];*/
-	/*if(ptsname_r(Int_val(fd), name, 1024) != 0)*/
-	char *name = ptsname(Int_val(fd));
-	if(name == 0)
-		uerror("ptsname", Nothing);
-	value ret = caml_copy_string(name);
-	CAMLreturn(ret);
+	CAMLreturn(Val_unit);
 }
 
